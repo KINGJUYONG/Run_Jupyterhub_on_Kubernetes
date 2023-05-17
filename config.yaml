@@ -1,0 +1,107 @@
+proxy:
+  secretToken: "<token>"
+  https:
+    enabled: true
+  service:
+    nodePorts:
+      http: port_number
+    loadBalancerIP: IP
+
+ingress:
+  enabled: true
+
+cull:
+  enabled: true
+  timeout: 3600
+  every: 300
+
+singleuser:
+  cmd:
+  uid: 0
+  extraEnv:
+    CHOWN_HOME: 'yes'
+
+  profileList:
+  - display_name: "pyspark-notebook:spark-3.10.8"
+    description: "파이스파크 이미지, 사용가능"
+    kubespawner_override:
+      image: jupyter/pyspark-notebook
+      tag: python-3.10.8
+      pullPolicy: IfNotPresent
+      pullSecrets: []
+
+
+  - display_name: "tensorflow-notebook:latest"
+    description: "GPU 할당되니 접속 실패시 관리자에게 문의, 텐서플로우-노트북 이미지"
+    kubespawner_override:
+      image: jupyter/tensorflow-notebook
+      tag: :latest
+      pullPolicy: IfNotPresent
+      pullSecrets: []
+      extra_resource_limits:
+        nvidia.com/gpu: "1"
+
+
+  startTimeout: 3000
+
+  memory:
+    limit: 
+    guarantee: 1G
+  cpu:
+    limit:
+    guarantee: 0.5
+  storage:
+    homeMountPath: /home/{username}
+    dynamic:
+      storageClass: nfs-client # storageclass.yaml
+      storageAccessModes: [ReadWriteMany]
+    capacity: 10Gi
+  
+
+  extraFiles:
+    jupyter_notebook_config.json:
+      mountPath: /etc/jupyter/jupyter_notebook_config.json
+      data:
+        MappingKernelManager:
+          cull_idle_timeout: 1800
+          cull_interval: 600
+          cull_connected: false
+          cull_busy: false
+
+
+scheduling:
+  userScheduler:
+    enabled: false
+
+hub:
+  service:
+    type: ClusterIP
+  config:
+    JupyterHub:
+      admin_access: true
+      admin_users:
+      - user_name
+  extraConfig: 
+    changeUsername: |
+      c.Spawner.cmd = ['start.sh','jupyterhub-singleuser','--allow-root']
+      c.KubeSpawner.args = ['--allow-root']
+      def notebook_dir_hook(spawner):
+        spawner.environment = {'NB_USER':spawner.user.name,'NB_UID':'1000'}
+      c.Spawner.pre_spawn_hook = notebook_dir_hook
+
+debug:
+  enabled: true
+
+prePuller:
+  hook:
+    enabled: true
+
+imagePullSecret:
+    enabled: true
+    registry: docker.io
+    username: ID
+    password: PW
+
+    registry: registry-1.docker.io
+    username: ID
+    password: PW
